@@ -12,16 +12,22 @@ Les données synthétiques proviennnent de relevés de capteurs de différentes 
 ## Technologies du projet :
 
 - Conteneurisation Docker :
-    - PostgreSQL : Metastore (base de données interne d'Airflow)
+    - PostgreSQL : Metastore (bases de données interne d'Airflow et du catalogue OpenMetadata)
     - MinIo
-    - MinIo-Init
-    - Airflow
+    - MinIo-init    
+    - Opensearch
+    - Execute-migrate-all
+    - Openmetadata
+    - Airflow-init
+    - Airflow-webserver
+    - Airflow-scheduler
     
 
 - MinIo : serveur de stockage d'objets open source, compatible avec l'API Amazon S3
 
 - Apache Airflow : permet l'automatisation et le monitoring des pipelines
 
+- OpenMetadata : plateforme open source de catalogue et de gouvernance des données, permettant de documenter les métadonnées et de suivre le lineage des données
 
 
 
