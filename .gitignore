@@ -3,6 +3,53 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# Logs d'Airflow
+logs/*
+
+# Garder le dossier logs dans Git
+!logs/.gitkeep
+
+# Dossier data incoming
+data/incoming/*
+
+# Dossier data archive
+data/archive/*
+
+# Garder le dossier data incoming dans Git
+!data/incoming/.gitkeep
+
+# Garder le dossier data archive dans Git
+!data/archive/.gitkeep
+
+# Dossier MinIo bucket raw
+minio-data/raw/*
+
+# Dossier MinIo bucket staging
+minio-data/staging/*
+
+# Dossier MinIo bucket curated
+minio-data/curated/*
+
+# Garder le dossier MinIo bucket raw dans Git
+!minio-data/raw/.gitkeep
+
+# Garder le dossier MinIo bucket staging dans Git
+!minio-data/staging/.gitkeep
+
+# Garder le dossier MinIo bucket curated dans Git
+!minio-data/curated/.gitkeep
+
+# Dossier datalake
+datalake/*
+
+# Garder le dossier datalake dans Git
+!datalake/.gitkeep
+
+# Fichiers système MinIO
+.minio.sys/
+xl.meta
+part.1
+
 # C extensions
 *.so
 

@@ -1,0 +1,47 @@
+FROM apache/airflow:2.10.5-python3.11
+
+USER root
+
+# Dépendances système
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        git \
+        gcc \
+        g++ && \
+    rm -rf /var/lib/apt/lists/*
+
+# Installation de uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Déterminer l'interpréteur Python utilisé par Airflow
+RUN PYTHON_BIN="$(python -c 'import sys; print(sys.executable)')" && \
+    echo "Python utilisé par Airflow : ${PYTHON_BIN}" && \
+    \
+    uv pip install \
+        --python "${PYTHON_BIN}" \
+        --no-cache \
+        # Permet à OpenMetadata de piloter Airflow
+        "openmetadata-managed-apis==1.8.2.*" \
+        # Permet à Airflow d'exécuter les connecteurs (Framework global + connecteurs spécifiques ici ex: postgres) 
+        "openmetadata-ingestion[postgres]==1.8.2.*" && \
+    \
+    echo "=== Vérification des distributions ===" && \
+    "${PYTHON_BIN}" -c "from importlib import metadata; print('openmetadata-managed-apis =', metadata.version('openmetadata-managed-apis'))" && \
+    "${PYTHON_BIN}" -c "from importlib import metadata; print('openmetadata-ingestion =', metadata.version('openmetadata-ingestion'))" && \
+    \
+    echo "=== Modules Python disponibles ===" && \
+    "${PYTHON_BIN}" - <<'PY'
+import pkgutil
+
+mods = sorted(m.name for m in pkgutil.iter_modules())
+
+for m in mods:
+    if "metadata" in m.lower():
+        print(m)
+PY
+
+# Dossier d'écriture des configs JSON de pipelines d'ingestion générées par l'UI OpenMetadata
+# (via le plugin openmetadata_managed_apis) -> doit appartenir à l'utilisateur "airflow".
+RUN mkdir -p /opt/airflow/dag_generated_configs && chown airflow:root /opt/airflow/dag_generated_configs
+ 
+USER airflow

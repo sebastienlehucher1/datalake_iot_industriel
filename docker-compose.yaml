@@ -1,0 +1,278 @@
+# Licensed to the Apache Software Foundation (ASF) under one or more
+# contributor license agreements.  See the NOTICE file distributed with
+# this work for additional information regarding copyright ownership.
+# The ASF licenses this file to You under the Apache License, Version 2.0
+# (the "License"); you may not use this file except in compliance with
+# the License.  You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+version: "3.9"
+
+x-airflow-common: &airflow-common
+  build:
+    context: .
+    dockerfile: Dockerfile.airflow
+  env_file: 
+    - .env
+  environment: &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PASSWORD}@psql-db:5432/${AIRFLOW_DB}
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY}
+    AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW__WEBSERVER__SECRET_KEY}
+    AIRFLOW__API__AUTH_BACKENDS: airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: "true"
+    AIRFLOW__CORE__LOAD_EXAMPLES: "false"
+  volumes:
+    - ./dags:/opt/airflow/dags
+    - ./data:/opt/airflow/data
+    - ./logs:/opt/airflow/logs
+    - ./datalake:/opt/airflow/datalake    
+  depends_on:
+    psql-db:
+      condition: service_healthy    
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # Postgres mutualisé : héberge 3 bases de données
+  # ---------------------------------------------------------------------------
+  psql-db:
+    image: postgres:14
+    container_name: psql-db
+    restart: always
+    env_file: 
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      AIRFLOW_DB: ${AIRFLOW_DB}
+      AIRFLOW_DB_USER: ${AIRFLOW_DB_USER}
+      AIRFLOW_DB_PASSWORD: ${AIRFLOW_DB_PASSWORD}      
+      OM_DB: ${OM_DB}
+      OM_DB_USER: ${OM_DB_USER}
+      OM_DB_PASSWORD: ${OM_DB_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts/postgres:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - datalake
+    
+  # ---------------------------------------------------------------------------
+  # MinIO : stockage objet compatible S3
+  # ---------------------------------------------------------------------------  
+  minio:
+      image: minio/minio:latest
+      container_name: minio
+      hostname: minio
+      env_file: 
+        - .env 
+      ports:
+        - "9000:9000"   # API S3
+        - "9001:9001"   # Console Web
+      environment:
+        - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+        - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      command: server /data --console-address ":9001"
+      volumes:
+        - ./minio-data:/data
+      healthcheck:
+        test: ["CMD", "mc", "ready", "local"]
+        interval: 10s
+        timeout: 5s
+        retries: 5
+      networks:
+        - datalake
+  
+  minio-init:
+      image: minio/mc:latest
+      container_name: minio-init
+      env_file: 
+          - .env
+      depends_on:
+        minio:
+          condition: service_healthy
+      environment:
+        - MINIO_ROOT_USER=${MINIO_ROOT_USER}
+        - MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
+      volumes:
+        - ./init-scripts/minio:/opt/minio-init:ro
+      entrypoint: ["/bin/sh", "/opt/minio-init/setup.sh"]
+      networks:
+        - datalake
+
+  opensearch:
+    image: opensearchproject/opensearch:2.19.0
+    container_name: opensearch
+    environment:
+      discovery.type: single-node
+      bootstrap.memory_lock: "true"
+      DISABLE_SECURITY_PLUGIN: "true"
+      OPENSEARCH_JAVA_OPTS: "-Xms1g -Xmx1g"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "9200:9200"
+    volumes:
+      - opensearch_data:/usr/share/opensearch/data
+    networks:
+      - datalake
+    
+  # ---------------------------------------------------------------------------
+  # Migration one-shot : crée/met à jour le schéma OpenMetadata dans Postgres
+  # AVANT le démarrage du serveur. Sans cette étape -> erreur
+  # « relation DATABASE_CHANGE_LOG does not exist ». Sort en exit 0.
+  # ---------------------------------------------------------------------------
+  execute-migrate-all:
+    image: docker.getcollate.io/openmetadata/server:1.8.2
+    container_name: execute_migrate_all
+    command: "./bootstrap/openmetadata-ops.sh migrate"
+    env_file:
+      - .env
+    depends_on:
+      psql-db:
+        condition: service_healthy
+      opensearch:
+        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
+    environment:
+      DB_DRIVER_CLASS: org.postgresql.Driver
+      DB_SCHEME: postgresql
+      DB_HOST: psql-db
+      DB_PORT: 5432
+      DB_USER: ${OM_DB_USER}
+      DB_USER_PASSWORD: ${OM_DB_PASSWORD}
+      DB_NAME: ${OM_DB}
+      SEARCH_TYPE: opensearch
+      ELASTICSEARCH_HOST: opensearch
+      ELASTICSEARCH_PORT: 9200
+      ELASTICSEARCH_SCHEME: http
+      S3_ENDPOINT: http://minio:9000
+      S3_AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      S3_AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      S3_BUCKET_NAME: openmetadata
+      S3_REGION: us-east-1
+      S3_PATH_STYLE_ACCESS: "true"
+    networks:
+      - datalake
+  
+  openmetadata:
+    image: docker.getcollate.io/openmetadata/server:1.8.2
+    container_name: openmetadata
+    env_file: 
+      - .env 
+    depends_on:
+      psql-db:
+        condition: service_healthy
+      opensearch:
+        condition: service_started
+      minio-init:
+        condition: service_completed_successfully
+      execute-migrate-all:
+        condition: service_completed_successfully
+    ports:
+      - "8585:8585"
+    environment:
+      DB_DRIVER_CLASS: org.postgresql.Driver
+      DB_SCHEME: postgresql
+      DB_HOST: psql-db
+      DB_PORT: 5432
+      DB_USER: ${OM_DB_USER}
+      DB_USER_PASSWORD: ${OM_DB_PASSWORD}
+      DB_NAME: ${OM_DB}
+      SEARCH_TYPE: opensearch
+      ELASTICSEARCH_HOST: opensearch
+      ELASTICSEARCH_PORT: 9200
+      ELASTICSEARCH_SCHEME: http
+      S3_ENDPOINT: http://minio:9000
+      S3_AWS_ACCESS_KEY_ID: ${MINIO_ROOT_USER}
+      S3_AWS_SECRET_ACCESS_KEY: ${MINIO_ROOT_PASSWORD}
+      S3_BUCKET_NAME: openmetadata
+      S3_REGION: us-east-1
+      S3_PATH_STYLE_ACCESS: "true"      
+    networks:
+      - datalake 
+
+  # ---------------------------------------------------------------------------
+  # Airflow métier (init -> migrate DB + crée l'admin, puis webserver + scheduler)
+  # ---------------------------------------------------------------------------
+  airflow-init:
+    <<: *airflow-common
+    container_name: airflow-init
+    # On NE surcharge PAS l'entrypoint : celui de l'image officielle injecte une
+    # entrée /etc/passwd pour l'UID arbitraire (group 0), puis déclenche migration
+    # et création de l'admin via ces variables. `airflow version` termine en exit 0.
+    environment:
+      <<: *airflow-common-env
+      _AIRFLOW_DB_MIGRATE: "true"
+      _AIRFLOW_WWW_USER_CREATE: "true"
+      _AIRFLOW_WWW_USER_USERNAME: ${AIRFLOW_ADMIN_USER:-admin}
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-admin}
+    command: version
+    depends_on:
+      psql-db:
+        condition: service_healthy      
+    restart: on-failure
+    networks:
+      - datalake
+
+  airflow-webserver:
+    <<: *airflow-common    
+    container_name: airflow-webserver
+    hostname: airflow-webserver    
+    restart:  unless-stopped
+    command: webserver
+    depends_on:
+      psql-db:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully    
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    networks:
+      - datalake
+  
+  airflow-scheduler:
+    <<: *airflow-common
+    container_name: airflow-scheduler
+    command: scheduler
+    depends_on:
+      psql-db:
+        condition: service_healthy
+      airflow-init:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks:
+      - datalake
+
+volumes:
+  postgres_data:
+  opensearch_data:
+
+networks:
+  datalake:
+    driver: bridge
+    
