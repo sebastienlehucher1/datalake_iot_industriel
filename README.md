@@ -87,8 +87,8 @@ La liste des commandes docker utilisées dans ce projet se trouve dans le fichie
 
 ### Construction des conteneurs Docker :
 ```
-docker-compose build
-docker-compose up -d
+docker compose build
+docker compose up -d
 ```
 
 ### Accès à l'interface d'Airflow dans le navigateur de l'utilisateur
