@@ -1,8 +1,11 @@
 #!/bin/sh
 # =============================================================================
 #  Initialisation MinIO — exécuté par le job one-shot `minio-init`.
-#  Crée : les 4 buckets (un par couche) + les comptes de service et leurs
-#  policies IAM différenciées par bucket (C19 « policies d'accès initiales »).
+#  Description :
+#    - Crée les 4 buckets de l'architecture (raw, staging, curated, archive)
+#    - Configure les policies IAM personnalisées par rôle
+#    - Crée et associe les comptes applicatifs (data-analyst, data-engineer, admin)
+#    - Applique les règles de cycle de vie ILM (purge staging, rétention/archivage raw).
 #
 #  Idempotent : relançable sans erreur. Les commandes susceptibles d'échouer
 #  « parce que ça existe déjà » sont neutralisées par `|| true`.
@@ -41,5 +44,16 @@ mc admin policy attach local data-engineer --user "$MINIO_ENGINEER_USER" 2>/dev/
 mc admin user add local "$MINIO_ADMIN_USER" "$MINIO_ADMIN_PASSWORD" 2>/dev/null || true
 mc admin policy attach local consoleAdmin --user "$MINIO_ADMIN_USER" 2>/dev/null || true
 
+# Déclarer le bucket "archive" comme cible d'archivage (Remote MinIO/S3)
+mc admin tier add minio local WARM-ARCHIVE --endpoint http://minio:9000 --bucket archive --access-key "$MINIO_ROOT_USER" --secret-key "$MINIO_ROOT_PASSWORD" || true
+
+# --- Configuration ILM (Life Cycle Rules) -----------------------------------
+# raw : archivage 180 jours, expiration 730 jours (2 ans)
+mc ilm import local/raw "$POLICIES/raw-ilm.json" 2>/dev/null || true
+
+# staging : purge automatique après 30 jours (zone tampon)
+mc ilm rule add --expiry-days 30 local/staging 2>/dev/null || true
+
 echo "MinIO prêt : buckets raw/staging/curated/archive + comptes data-analyst (RO curated),"
-echo "             data-engineer (RW raw/staging/curated), admin (tous droits)."
+echo "             data-engineer (RW raw/staging/curated), admin (tous droits) +"
+echo "             règles ILM configurées."

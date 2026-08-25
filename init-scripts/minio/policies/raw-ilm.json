@@ -1,0 +1,20 @@
+{
+  "Rules": [
+    {
+      "ID": "RawArchivingAndExpiration",
+      "Status": "Enabled",
+      "Filter": {
+        "Prefix": ""
+      },
+      "Transitions": [
+        {
+          "Days": 180,
+          "StorageClass": "WARM-ARCHIVE"
+        }
+      ],
+      "Expiration": {
+        "Days": 730
+      }
+    }
+  ]
+}
