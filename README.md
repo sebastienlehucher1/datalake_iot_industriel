@@ -17,7 +17,7 @@ Les données synthétiques proviennnent de relevés de capteurs de différentes 
     - MinIo-init    
     - Opensearch
     - Execute-migrate-all
-    - Openmetadata
+    - Openmetadata-server
     - Openmetadata-ingestion
     - Airflow-init
     - Airflow-webserver
