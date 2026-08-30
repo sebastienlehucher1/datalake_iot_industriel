@@ -44,11 +44,8 @@ mc admin policy attach local data-engineer --user "$MINIO_ENGINEER_USER" 2>/dev/
 mc admin user add local "$MINIO_ADMIN_USER" "$MINIO_ADMIN_PASSWORD" 2>/dev/null || true
 mc admin policy attach local consoleAdmin --user "$MINIO_ADMIN_USER" 2>/dev/null || true
 
-# Déclarer le bucket "archive" comme cible d'archivage (Remote MinIO/S3)
-mc admin tier add minio local WARM-ARCHIVE --endpoint http://minio:9000 --bucket archive --access-key "$MINIO_ROOT_USER" --secret-key "$MINIO_ROOT_PASSWORD" || true
-
 # --- Configuration ILM (Life Cycle Rules) -----------------------------------
-# raw : archivage 180 jours, expiration 730 jours (2 ans)
+# raw : archivage 180 jours (WARM-ARCHIVE), expiration 730 jours (2 ans) via le fichier JSON
 mc ilm import local/raw "$POLICIES/raw-ilm.json" 2>/dev/null || true
 
 # staging : purge automatique après 30 jours (zone tampon)

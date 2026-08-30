@@ -173,6 +173,9 @@ services:
     networks:
       - datalake
   
+  # ---------------------------------------------------------------------------
+  # Serveur Web OpenMetadata
+  # ---------------------------------------------------------------------------
   openmetadata:
     image: docker.getcollate.io/openmetadata/server:1.8.2
     container_name: openmetadata
@@ -190,6 +193,10 @@ services:
     ports:
       - "8585:8585"
     environment:
+      PIPELINE_TYPE: "Airflow"
+      AIRFLOW_HOST_PORT: "http://openmetadata-ingestion:8080/api"
+      AIRFLOW_USERNAME: ${AIRFLOW_ADMIN_USER:-admin}
+      AIRFLOW_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-admin}
       DB_DRIVER_CLASS: org.postgresql.Driver
       DB_SCHEME: postgresql
       DB_HOST: psql-db
@@ -207,6 +214,23 @@ services:
       S3_BUCKET_NAME: openmetadata
       S3_REGION: us-east-1
       S3_PATH_STYLE_ACCESS: "true"      
+    networks:
+      - datalake
+
+  # ---------------------------------------------------------------------------
+  # Conteneur d'ingestion OpenMetadata (Airflow/Python interne)
+  # ---------------------------------------------------------------------------
+  openmetadata-ingestion:
+    image: docker.getcollate.io/openmetadata/ingestion:1.8.2
+    container_name: openmetadata-ingestion
+    command: standalone
+    env_file:
+      - .env
+    depends_on:
+      openmetadata:
+        condition: service_started
+    environment:
+      OPENMETADATA_SERVER_CONFIG_HOST_PORT: http://openmetadata:8585/api
     networks:
       - datalake 
 

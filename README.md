@@ -18,6 +18,7 @@ Les données synthétiques proviennnent de relevés de capteurs de différentes 
     - Opensearch
     - Execute-migrate-all
     - Openmetadata
+    - Openmetadata-ingestion
     - Airflow-init
     - Airflow-webserver
     - Airflow-scheduler
