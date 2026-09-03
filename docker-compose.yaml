@@ -190,9 +190,18 @@ services:
         condition: service_completed_successfully
       execute-migrate-all:
         condition: service_completed_successfully
+      airflow-init:
+        condition: service_completed_successfully
     ports:
       - "8585:8585"
     environment:
+      # Connection au service d'ingestion Airflow
+      PIPELINE_SERVICE_CLIENT_ENDPOINT: "http://airflow-webserver:8080"
+      # Autorise OpenMetadata à retenter la connexion à Airflow au démarrage
+      PIPELINE_SERVICE_CLIENT_MAX_TIMEOUT: "30"
+      # Identifiants d'accès à l'API Airflow
+      PIPELINE_SERVICE_CLIENT_USERNAME: ${AIRFLOW_ADMIN_USER:-admin}
+      PIPELINE_SERVICE_CLIENT_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-admin}
       # --- CONFIGURATION BASE DE DONNÉES ---     
       DB_DRIVER_CLASS: org.postgresql.Driver
       DB_SCHEME: postgresql
