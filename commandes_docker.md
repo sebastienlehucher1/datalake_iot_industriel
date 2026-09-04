@@ -17,7 +17,21 @@ Vérifier que le plugin OpenMetadata est chargé dans Airflow :
 docker exec -it airflow-webserver airflow plugins
 
 
-Vérifier que le conteneur Airflow peut communiquer avec le serveur OpenMetadata via le réseau Docker :
+Vérifier que le conteneur airflow-webserver peut communiquer avec le serveur OpenMetadata via le réseau Docker :
 docker exec -it airflow-webserver \
 curl http://openmetadata:8585/api/v1/system/version
+
+
+Installer curl en root sur le conteneur openmetadata-server :
+docker exec -u 0 -it openmetadata-server apk add --no-cache curl
+
+
+Vérifier que le conteneur openmetadata-server communique bien avec Airflow via le réseau Docker :
+docker exec -it openmetadata-server \
+  curl -i http://airflow-webserver:8080/api/v1/health
+
+
+Tester l'authentification Airflow avec les identifiants configurés depuis le conteneur openmetadata-server :
+docker exec -it openmetadata-server \
+  curl -i -u admin:pass-admin http://airflow-webserver:8080/api/v1/users
 ```
