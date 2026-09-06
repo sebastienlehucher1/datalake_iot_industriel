@@ -3,8 +3,9 @@ FROM docker.getcollate.io/openmetadata/ingestion:1.8.2
 USER airflow
 
 RUN pip install --no-cache-dir \
-    jaraco.context \
-    collate-data-diff==0.11.11
+    "jaraco.functools<4.2.0" \
+    "jaraco.context==6.0.0" \
+    "collate-data-diff==0.11.11"
 
 RUN python - <<'PY'
 from pathlib import Path

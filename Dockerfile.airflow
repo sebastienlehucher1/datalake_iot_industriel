@@ -25,8 +25,10 @@ RUN PYTHON_BIN="$(python -c 'import sys; print(sys.executable)')" && \
         --python "${PYTHON_BIN}" \
         --no-cache \        
         "openmetadata-managed-apis==1.8.2.*" \         
-        "openmetadata-ingestion[postgres]==1.8.2.*" \        
-        "jaraco.context==6.0.1" && \
+        "openmetadata-ingestion[postgres]==1.8.2.*" \
+        "jaraco.functools<4.2.0" \        
+        "jaraco.context==6.0.0" \
+        "more-itertools<11.0,>=8.0" && \
     \
     echo "=== Vérification des distributions ===" && \
     "${PYTHON_BIN}" -c "from importlib import metadata; print('openmetadata-managed-apis =', metadata.version('openmetadata-managed-apis'))" && \

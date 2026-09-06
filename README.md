@@ -90,7 +90,7 @@ Ouvrez votre terminal de VS Code ou votre invite de commandes et utilisez la com
 
 Après avoir cloné le dépôt, vous devez vous déplacer dans le dossier qui vient d'être créé pour pouvoir travailler sur le projet en utilisant la commande "cd datalake_iot_industriel" dans votre terminal de VS Code.
 
-La liste des commandes docker utilisées dans ce projet se trouve dans le fichier "commandes_docker.md".
+La liste des commandes docker + psql utilisées dans ce projet se trouve dans le fichier "commandes_docker_psql.md".
 
 ### Construction des conteneurs Docker :
 ```
