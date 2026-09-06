@@ -13,17 +13,20 @@ RUN apt-get update && \
 # Installation de uv
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-# Déterminer l'interpréteur Python utilisé par Airflow
+ENV PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring
+
+# 'openmetadata-managed-apis' permet à OpenMetadata de piloter Airflow
+# 'openmetadata-ingestion[postgres]' permet à Airflow d'exécuter les connecteurs (Framework global + connecteurs spécifiques ici ex: postgres)
+# On force jaraco.context pour éviter un conflit/absence de dépendance (souvent requis par setuptools/keyring)
 RUN PYTHON_BIN="$(python -c 'import sys; print(sys.executable)')" && \
     echo "Python utilisé par Airflow : ${PYTHON_BIN}" && \
     \
     uv pip install \
         --python "${PYTHON_BIN}" \
-        --no-cache \
-        # Permet à OpenMetadata de piloter Airflow
-        "openmetadata-managed-apis==1.8.2.*" \
-        # Permet à Airflow d'exécuter les connecteurs (Framework global + connecteurs spécifiques ici ex: postgres) 
-        "openmetadata-ingestion[postgres]==1.8.2.*" && \
+        --no-cache \        
+        "openmetadata-managed-apis==1.8.2.*" \         
+        "openmetadata-ingestion[postgres]==1.8.2.*" \        
+        "jaraco.context==6.0.1" && \
     \
     echo "=== Vérification des distributions ===" && \
     "${PYTHON_BIN}" -c "from importlib import metadata; print('openmetadata-managed-apis =', metadata.version('openmetadata-managed-apis'))" && \

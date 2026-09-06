@@ -196,7 +196,9 @@ services:
       - "8585:8585"
     environment:
       # Connection au service d'ingestion Airflow
-      PIPELINE_SERVICE_CLIENT_ENDPOINT: "http://airflow-webserver:8080"      
+      PIPELINE_SERVICE_CLIENT_ENDPOINT: "http://airflow-webserver:8080"
+      # URL utilisée par Airflow pour rappeler OpenMetadata (callback des test/status de workflow)
+      SERVER_HOST_API_URL: "http://openmetadata-server:8585/api"      
       # Identifiants d'accès à l'API Airflow
       AIRFLOW_USERNAME: ${AIRFLOW_ADMIN_USER:-admin}
       AIRFLOW_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD:-admin}
@@ -227,7 +229,9 @@ services:
   # Conteneur d'ingestion OpenMetadata (Airflow/Python interne)
   # ---------------------------------------------------------------------------
   openmetadata-ingestion:
-    image: docker.getcollate.io/openmetadata/ingestion:1.8.2
+    build:
+      context: .
+      dockerfile: Dockerfile.ingestion
     container_name: openmetadata-ingestion
     command: standalone
     env_file:
@@ -237,6 +241,7 @@ services:
         condition: service_started
     environment:
       OPENMETADATA_SERVER_CONFIG_HOST_PORT: http://openmetadata-server:8585/api
+      PYTHON_KEYRING_BACKEND: keyring.backends.null.Keyring      
     networks:
       - datalake 
 

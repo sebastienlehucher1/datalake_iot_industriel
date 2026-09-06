@@ -1,0 +1,53 @@
+FROM docker.getcollate.io/openmetadata/ingestion:1.8.2
+
+USER airflow
+
+RUN pip install --no-cache-dir \
+    jaraco.context \
+    collate-data-diff==0.11.11
+
+RUN python - <<'PY'
+from pathlib import Path
+
+path = Path(
+    "/home/airflow/.local/lib/python3.10/site-packages/"
+    "metadata/data_quality/validations/table/sqlalchemy/tableDiff.py"
+)
+
+text = path.read_text()
+
+old = """        table2 = data_diff.connect_to_table(
+            self.runtime_params.table2.serviceUrl,
+            self.runtime_params.table2.path,
+            self.runtime_params.keyColumns,  # type: ignore
+            case_sensitive=self.get_case_sensitive(),
+            where=right_where,
+            key_content=self.runtime_params.table1.privateKey.get_secret_value()
+            if self.runtime_params.table1.privateKey
+            else None,
+            private_key_passphrase=self.runtime_params.table1.passPhrase.get_secret_value()
+            if self.runtime_params.table1.passPhrase
+            else None,
+        )"""
+
+new = """        table2 = data_diff.connect_to_table(
+            self.runtime_params.table2.serviceUrl,
+            self.runtime_params.table2.path,
+            self.runtime_params.keyColumns,  # type: ignore
+            case_sensitive=self.get_case_sensitive(),
+            where=right_where,
+            key_content=self.runtime_params.table2.privateKey.get_secret_value()
+            if self.runtime_params.table2.privateKey
+            else None,
+            private_key_passphrase=self.runtime_params.table2.passPhrase.get_secret_value()
+            if self.runtime_params.table2.passPhrase
+            else None,
+        )"""
+
+if old not in text:
+    raise RuntimeError("Bloc table2 attendu introuvable : aucun changement effectué")
+
+path.write_text(text.replace(old, new, 1))
+
+print("tableDiff.py corrigé avec succès")
+PY
