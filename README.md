@@ -24,7 +24,9 @@ Les données synthétiques proviennnent de relevés de capteurs de différentes 
     - Airflow-scheduler
     
 
-- MinIo : serveur de stockage d'objets open source, compatible avec l'API Amazon S3
+- MinIo : serveur de stockage d'objets open source, compatible avec l’API S3 d’Amazon Web Services (AWS)
+
+- boto3 : bibliothèque Python officielle d’AWS (AWS SDK for Python), qui permet d’utiliser S3 AWS
 
 - Apache Airflow : permet l'automatisation et le monitoring des pipelines
 
