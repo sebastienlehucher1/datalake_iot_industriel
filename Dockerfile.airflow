@@ -17,7 +17,7 @@ ENV PYTHON_KEYRING_BACKEND=keyring.backends.null.Keyring
 
 # 'openmetadata-managed-apis' permet à OpenMetadata de piloter Airflow
 # 'openmetadata-ingestion[postgres]' permet à Airflow d'exécuter les connecteurs (Framework global + connecteurs spécifiques ici ex: postgres)
-# On force jaraco.context pour éviter un conflit/absence de dépendance (souvent requis par setuptools/keyring)
+# On force jaraco.context pour éviter un conflit/absence de dépendance (souvent requis par setuptools/keyring).
 RUN PYTHON_BIN="$(python -c 'import sys; print(sys.executable)')" && \
     echo "Python utilisé par Airflow : ${PYTHON_BIN}" && \
     \
@@ -43,6 +43,52 @@ mods = sorted(m.name for m in pkgutil.iter_modules())
 for m in mods:
     if "metadata" in m.lower():
         print(m)
+PY
+
+# Correction du test de connexion S3 OpenMetadata pour MinIO :
+# MinIO ne fournit pas AWS CloudWatch, donc on ignore l'étape GetMetrics
+# lorsque l'endpoint S3 personnalisé est configuré.
+RUN python - <<'PY'
+from pathlib import Path
+
+path = Path(
+    "/home/airflow/.local/lib/python3.11/site-packages/"
+    "metadata/ingestion/source/storage/s3/connection.py"
+)
+
+text = path.read_text()
+
+old = """    test_fn = {
+        "ListBuckets": partial(
+            test_buckets, client=client, connection=service_connection
+        ),
+        "GetMetrics": partial(
+            client.cloudwatch_client.list_metrics, Namespace="AWS/S3"
+        ),
+    }
+"""
+
+new = """    def test_metrics():
+        # Custom S3 endpoints such as MinIO do not provide AWS CloudWatch.
+        # Keep the step because OpenMetadata expects it, but skip the
+        # CloudWatch call when an endpoint URL is configured.
+        if service_connection.awsConfig.endPointURL:
+            return None
+        return client.cloudwatch_client.list_metrics(Namespace="AWS/S3")
+
+    test_fn = {
+        "ListBuckets": partial(
+            test_buckets, client=client, connection=service_connection
+        ),
+        "GetMetrics": test_metrics,
+    }
+"""
+
+if old not in text:
+    raise RuntimeError("Bloc S3 attendu introuvable")
+
+path.write_text(text.replace(old, new, 1))
+print("Patch MinIO GetMetrics appliqué")
 PY
 
 # Dossier d'écriture des configs JSON de pipelines d'ingestion générées par l'UI OpenMetadata
