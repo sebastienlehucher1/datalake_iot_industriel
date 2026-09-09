@@ -1,0 +1,31 @@
+version: 1
+entity: table
+fqn: MinIO_Raw.raw.LineA_Stable_10K
+name: LineA_Stable_10K
+description: "Flux de télémétrie capteurs de la ligne de production LineA_Stable_10K."
+tableType: Regular
+owner:
+  type: user
+  name: responsable_maintenance
+extension:
+  sourceUrl: "https://zenodo.org/records/15277168/files/LineA_Stable_10K.csv"
+  sourceSystem: "Zenodo (Open Data Repository)"
+  updateFrequency: "Continuous / Historical Dataset"
+columns:
+  - name: timestamp
+    dataType: TIMESTAMP
+    description: "Horodatage de la mesure en UTC (ISO 8601)"
+  - name: Temperature
+    dataType: FLOAT
+    description: "Température du roulement principal (Unité: °C | Plage normale: 45.0 - 75.0)"
+  - name: pressure
+    dataType: FLOAT
+    description: "Pression du système hydraulique (Unité: bar | Plage normale: 120.0 - 150.0)"
+  - name: elapsed_time
+    dataType: FLOAT
+    description: "Temps écoulé depuis le début du cycle de production (Unité: s | Plage: >= 0)"
+  - name: label
+    dataType: INT
+    description: "Indicateur d'état du système : 0 = Nominal, 1 = Anomalie"
+    tags:
+      - tagFQN: "DataClassification.TargetVariable"

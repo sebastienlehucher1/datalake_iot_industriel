@@ -3,9 +3,13 @@
 
 ## Présentation :
 
-Je suis Data Engineer chez IndustrIA, une ESN spécialisée dans la valorisation des données industrielles. Mon client, un équipementier automobile, exploite 5 lignes de production instrumentées de capteurs (température, pression, temps de fonctionnement). Les données sont aujourd'hui stockées en vrac, sans structure ni gouvernance. La DSI me confie la mission de concevoir et déployer un data-lake moderne pour centraliser, documenter et sécuriser l'ensemble de ces flux, en vue d'un futur projet de maintenance prédictive.
+Je suis Data Engineer chez IndustrIA, une ESN spécialisée dans la valorisation des données industrielles. Mon client, un équipementier automobile, exploite 5 lignes de production instrumentées de capteurs (température, pression, temps de fonctionnement). Les données sont aujourd'hui stockées en vrac, sans structure ni gouvernance. La DSI me confie la mission de concevoir et déployer un Data Lake moderne pour centraliser, documenter et sécuriser l'ensemble de ces flux, en vue d'un futur projet de maintenance prédictive.
 
 Les données synthétiques proviennnent de relevés de capteurs de différentes lignes de production industrielle. Ces données représentent des mesures de température, de pression et, dans certains cas, de temps écoulé de machines industrielles, avec des enregistrements des conditions de fonctionnement normales et des anomalies potentielles.
+
+Dans une perspective de **maintenance prédictive**, disposer de données fiables, documentées et harmonisées est la condition *sine qua non* du succès. Les modèles d'intelligence artificielle dédiés à la détection d'anomalies reposent sur des historiques massifs de télémétrie multi-équipements. 
+
+Ce projet met en place l'architecture **Data Lake (MinIO, Airflow, OpenMetadata)** qui sert de fondation technique pour qualifier ces données. À terme, cette infrastructure permettra d'entraîner des modèles capables d'anticiper les signes précurseurs de défaillance et de réduire drastiquement les arrêts non planifiés des lignes de production.
 
 
 
