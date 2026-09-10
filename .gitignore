@@ -3,6 +3,9 @@ __pycache__/
 *.py[codz]
 *$py.class
 
+# Ignorer tous les DAGs générés par OpenMetadata (format UUID : 8-4-4-4-12 car.)
+dags/[0-9a-f]*-*[0-9a-f]*-*[0-9a-f]*-*[0-9a-f]*-*[0-9a-f]*.py
+
 # Logs d'Airflow
 logs/*
 
