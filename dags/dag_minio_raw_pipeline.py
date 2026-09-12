@@ -192,8 +192,12 @@ def run_metadata_enrichment():
             )
 
 
-# Déclenche l'exécution du workflow d'ingestion S3 configuré sur l'UI OpenMetadata
+# ==========================================
+# FONCTION DE TÂCHES
+# ==========================================
 def trigger_om_ingestion_from_ui():
+
+  """Déclenche l'ingestion S3/MinIO via le pipeline configuré dans l'UI OpenMetadata."""
   
   url = f"{OPENMETADATA_HOST}/v1/services/ingestionPipelines/trigger/{PIPELINE_FQN}"
   
