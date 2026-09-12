@@ -6,6 +6,12 @@ __pycache__/
 # Ignorer tous les DAGs générés par OpenMetadata (format UUID : 8-4-4-4-12 car.)
 dags/[0-9a-f]*-*[0-9a-f]*-*[0-9a-f]*-*[0-9a-f]*-*[0-9a-f]*.py
 
+# Ignorer tous les fichiers de configuration JSON générés par OpenMetadata (format UUID : 8-4-4-4-12 car.)
+dag_generated_configs/[0-9a-f]*-*[0-9a-f]*-*[0-9a-f]*-*[0-9a-f]*-*[0-9a-f]*.json
+
+# Garder le dossier dag_generated_configs dans Git
+!dag_generated_configs/.gitkeep
+
 # Logs d'Airflow
 logs/*
 

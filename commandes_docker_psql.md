@@ -36,17 +36,17 @@ docker exec -it openmetadata-server \
   curl -i -u admin:pass-admin http://airflow-webserver:8080/api/v1/users
 
 
-Créer l'extension pg_stat_statements dans la base de données utilisée par OpenMetadata :
+Créer l'extension pg_stat_statements dans la base de données métier :
 docker exec -it psql-db psql \
-  -U openmetadata \
-  -d openmetadata_db \
+  -U postgres \
+  -d postgres_db \
   -c "CREATE EXTENSION IF NOT EXISTS pg_stat_statements;"
 
 
-Vérifier la création de pg_stat_statements dans la base Openmetadata :
+Vérifier la création de pg_stat_statements dans la base Posgres métier :
 docker exec -it psql-db psql \
-  -U openmetadata \
-  -d openmetadata_db \
+  -U postgres \
+  -d postgres_db \
   -c \
 "SELECT extname, extversion
  FROM pg_extension
