@@ -192,9 +192,9 @@ def run_metadata_enrichment():
             )
 
 
-# ==========================================
-# FONCTION DE TÂCHES
-# ==========================================
+# -------------------------------------------------------------------------
+# Fonction de Tâches
+# -------------------------------------------------------------------------
 def trigger_om_ingestion_from_ui():
 
   """Déclenche l'ingestion S3/MinIO via le pipeline configuré dans l'UI OpenMetadata."""
