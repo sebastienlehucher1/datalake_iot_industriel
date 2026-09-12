@@ -2,7 +2,6 @@ from datetime import datetime, timezone
 import os
 from airflow import DAG
 from airflow.operators.python import PythonOperator
-from airflow.providers.openmetadata.operators.openmetadata import OpenMetadataIngestionOperator
 from pathlib import Path
 from dotenv import load_dotenv
 import requests
@@ -16,6 +15,8 @@ load_dotenv()
 OPENMETADATA_HOST = "http://openmetadata-server:8585/api"
 JWT_TOKEN = os.getenv("JWT_ACCESS_TOKEN_USER_ADMIN")
 YAML_METADATA_DIR = "/opt/airflow/dags/metadata/"
+# Identifiant (FQN) de l'ingestion configurée dans l'UI OpenMetadata
+PIPELINE_FQN = "MinIO_Raw.MinIO_Raw_Ingestion"
 
 HEADERS = {
     "Authorization": f"Bearer {JWT_TOKEN}",
@@ -191,6 +192,23 @@ def run_metadata_enrichment():
             )
 
 
+# Déclenche l'exécution du workflow d'ingestion S3 configuré sur l'UI OpenMetadata
+def trigger_om_ingestion_from_ui():
+  
+  url = f"{OPENMETADATA_HOST}/v1/services/ingestionPipelines/trigger/{PIPELINE_FQN}"
+  
+
+  response = requests.post(url, headers=HEADERS)
+
+  if response.status_code not in (200, 201, 202):
+    raise RuntimeError(
+        f"Impossible de lancer le pipeline depuis l'UI ({response.status_code}) :"
+        f" {response.text}"
+    )
+
+  print(f"Pipeline '{PIPELINE_FQN}' déclenché avec succès depuis l'UI OpenMetadata.")
+
+
 # -------------------------------------------------------------------------
 # Définition du DAG Airflow
 # -------------------------------------------------------------------------
@@ -210,31 +228,9 @@ with DAG(
 ) as dag:
 
     # Ingestion automatique de la structure S3/MinIO
-    task_s3_ingestion = OpenMetadataIngestionOperator(
-        task_id="ingest_minio_s3_structure",
-        pipeline_run_id="minio_raw_s3_ingestion",
-        config={
-            "source": {
-                "type": "storage",
-                "serviceName": "MinIO_Raw",
-                "sourceConfig": {
-                    "config": {
-                        "type": "StorageMetadata",
-                        "generateSampleData": False,
-                    }
-                },
-            },
-            "sink": {
-                "type": "metadata-rest",
-                "config": {
-                    "openMetadataServerConnection": {
-                        "hostPort": OPENMETADATA_HOST,
-                        "authProvider": "openmetadata",
-                        "securityConfig": {"jwtToken": JWT_TOKEN},
-                    }
-                },
-            },
-        },
+    task_s3_ingestion = PythonOperator(
+        task_id="ingest_minio_s3_structure",        
+        python_callable=trigger_om_ingestion_from_ui,
     )
 
     # Enrichissement fonctionnel via le script Python
