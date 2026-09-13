@@ -1,8 +1,9 @@
 version: 1
 entity: table
-fqn: MinIO_Raw.raw.LineA_Stable_10K
 name: LineA_Stable_10K
-description: "Flux de télémétrie capteurs de la ligne de production LineA_Stable_10K."
+displayName: "Données de production - Ligne A Stable 10K"
+line: "A"
+description: "Flux de télémétrie capteurs de la ligne de production A - Stable 10K."
 tableType: Regular
 owner:
   type: user

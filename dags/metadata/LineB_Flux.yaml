@@ -1,8 +1,9 @@
 version: 1
 entity: table
-fqn: MinIO_Raw.raw.LineB_Flux
 name: LineB_Flux
-description: "Flux de télémétrie capteurs de la ligne de production LineB_Flux."
+displayName: "Données de production - Ligne B Flux"
+line: "B"
+description: "Flux de télémétrie capteurs de la ligne de production B - Flux."
 tableType: Regular
 owner:
   type: user

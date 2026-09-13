@@ -1,8 +1,9 @@
 version: 1
 entity: table
-fqn: MinIO_Raw.raw.LineD_SpikeControl
 name: LineD_SpikeControl
-description: "Flux de télémétrie capteurs de la ligne de production LineD_SpikeControl."
+displayName: "Données de production - Ligne D SpikeControl"
+line: "D"
+description: "Flux de télémétrie capteurs de la ligne de production D - SpikeControl."
 tableType: Regular
 owner:
   type: user

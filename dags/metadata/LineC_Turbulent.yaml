@@ -1,8 +1,9 @@
 version: 1
 entity: table
-fqn: MinIO_Raw.raw.LineC_Turbulent
 name: LineC_Turbulent
-description: "Flux de télémétrie capteurs de la ligne de production LineC_Turbulent."
+displayName: "Données de production - Ligne C Turbulent"
+line: "C"
+description: "Flux de télémétrie capteurs de la ligne de production C - Turbulent."
 tableType: Regular
 owner:
   type: user

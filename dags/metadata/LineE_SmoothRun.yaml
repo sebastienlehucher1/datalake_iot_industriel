@@ -1,8 +1,9 @@
 version: 1
 entity: table
-fqn: MinIO_Raw.raw.LineE_SmoothRun
 name: LineE_SmoothRun
-description: "Flux de télémétrie capteurs de la ligne de production LineE_SmoothRun."
+displayName: "Données de production - Ligne E SmoothRun"
+line: "E"
+description: "Flux de télémétrie capteurs de la ligne de production E - SmoothRun."
 tableType: Regular
 owner:
   type: user

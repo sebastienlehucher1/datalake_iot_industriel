@@ -77,16 +77,17 @@ def run_metadata_enrichment():
             )
             continue      
 
-        # Recherche du conteneur par la partition de ligne de production
-        container_entity = next(
+        # Recherche de TOUS les conteneurs correspondants (insensible à la casse)
+        matching_containers = [
             (
                 c
                 for c in all_containers
                 if f"line={line_letter}" in c.get("fullyQualifiedName", "").lower()
             ),
             None,
-        )
-        if not container_entity:
+        ]
+
+        if not matching_containers:
             print(f"Conteneur introuvable pour la ligne de production : {line_letter.upper()}")
             continue    
 
@@ -94,102 +95,106 @@ def run_metadata_enrichment():
         yaml_columns = yaml_data.get("columns", [])
         columns_map = {col["name"]: col for col in yaml_columns}
 
-        data_model = container_entity.get("dataModel", {})
-        existing_cols = data_model.get("columns", [])
 
-        # Mise à jour des colonnes existantes
-        for col in existing_cols:
-            col_name = col.get("name")
-            if col_name in columns_map:
-                yaml_col = columns_map[col_name]
+        for container_entity in matching_containers:
 
-                # Description de colonne
-                if yaml_col.get("description"):
-                    col["description"] = yaml_col["description"]
+            data_model = container_entity.get("dataModel", {})
+            existing_cols = data_model.get("columns", [])
 
-                # Type de données (ex: STRING, INT, FLOAT, etc.)
-                if yaml_col.get("dataType"):
-                    col["dataType"] = yaml_col["dataType"].upper()
+            # Mise à jour des colonnes existantes
+            for col in existing_cols:
+                col_name = col.get("name")
+                if col_name in columns_map:
+                    yaml_col = columns_map[col_name]
 
-                # Tags de colonne (ex: TargetVariable)
-                if yaml_col.get("tags"):
+                    # Description de colonne
+                    if yaml_col.get("description"):
+                        col["description"] = yaml_col["description"]
+
+                    # Type de données (ex: STRING, INT, FLOAT, etc.)
+                    if yaml_col.get("dataType"):
+                        col["dataType"] = yaml_col["dataType"].upper()
+
+                    # Tags de colonne (ex: TargetVariable)
+                    if yaml_col.get("tags"):
+                        tags_list = []
+                        for tag in yaml_col["tags"]:
+                            tag_name = tag if isinstance(tag, str) else tag.get("tagFQN")
+                            
+                            # Conservation du FQN si un namespace/classification est déjà présent
+                            if "." in tag_name:
+                                tag_fqn = tag_name
+                            else:
+                                tag_fqn = f"TargetVariable.{tag_name}"
+
+                            tags_list.append({
+                                "tagFQN": tag_fqn,
+                                "labelType": "Manual",
+                                "state": "Confirmed",
+                                "source": "Classification",
+                            })
+                        col["tags"] = tags_list
+
+            # Traitement des colonnes YAML qui n'existaient pas encore dans l'ingestion S3
+            existing_names = {c.get("name") for c in existing_cols}
+            for col_name, yaml_col in columns_map.items():
+                if col_name not in existing_names:
                     tags_list = []
-                    for tag in yaml_col["tags"]:
-                        tag_name = tag if isinstance(tag, str) else tag.get("tagFQN")
-                        
-                        # Conservation du FQN si un namespace/classification est déjà présent
-                        if "." in tag_name:
-                            tag_fqn = tag_name
-                        else:
-                            tag_fqn = f"TargetVariable.{tag_name}"
+                    if yaml_col.get("tags"):
+                        for tag in yaml_col["tags"]:
+                            tag_name = tag if isinstance(tag, str) else tag.get("tagFQN")
 
-                        tags_list.append({
-                            "tagFQN": tag_fqn,
-                            "labelType": "Manual",
-                            "state": "Confirmed",
-                            "source": "Classification",
-                        })
-                    col["tags"] = tags_list
+                            # Conservation du FQN si un namespace/classification est déjà présent
+                            if "." in tag_name:
+                                tag_fqn = tag_name
+                            else:
+                                tag_fqn = f"TargetVariable.{tag_name}"
+                            
+                            tags_list.append({
+                                "tagFQN": tag_fqn,
+                                "labelType": "Manual",
+                                "state": "Confirmed",
+                                "source": "Classification",
+                            })
 
-        # Traitement des colonnes YAML qui n'existaient pas encore dans l'ingestion S3
-        existing_names = {c.get("name") for c in existing_cols}
-        for col_name, yaml_col in columns_map.items():
-            if col_name not in existing_names:
-                tags_list = []
-                if yaml_col.get("tags"):
-                    for tag in yaml_col["tags"]:
-                        tag_name = tag if isinstance(tag, str) else tag.get("tagFQN")
+                    existing_cols.append({
+                        "name": col_name,
+                        "dataType": yaml_col.get("dataType", "STRING").upper(),
+                        "description": yaml_col.get("description", ""),
+                        "tags": tags_list if tags_list else [],
+                    })
 
-                        # Conservation du FQN si un namespace/classification est déjà présent
-                        if "." in tag_name:
-                            tag_fqn = tag_name
-                        else:
-                            tag_fqn = f"TargetVariable.{tag_name}"
-                        
-                        tags_list.append({
-                            "tagFQN": tag_fqn,
-                            "labelType": "Manual",
-                            "state": "Confirmed",
-                            "source": "Classification",
-                        })
+            data_model["columns"] = existing_cols
 
-                existing_cols.append({
-                    "name": col_name,
-                    "dataType": yaml_col.get("dataType", "STRING").upper(),
-                    "description": yaml_col.get("description", ""),
-                    "tags": tags_list if tags_list else [],
-                })
+            # Construction du payload CreateContainer
+            create_payload = {
+                "name": container_entity.get("name"),
+                "displayName": container_entity.get("displayName")
+                or container_entity.get("name"),
+                "description": yaml_data.get("description", ""),
+                "service": container_entity.get("service", {}).get("name"),
+                "dataModel": data_model,
+            }
 
-        data_model["columns"] = existing_cols
+            # Conservation du conteneur parent s'il existe
+            if container_entity.get("parent"):
+                create_payload["parent"] = container_entity["parent"].get(
+                    "fullyQualifiedName"
+                )
 
-        # Construction du payload CreateContainer
-        create_payload = {
-            "name": container_entity.get("name"),
-            "displayName": container_name,
-            "description": yaml_data.get("description", ""),
-            "service": container_entity.get("service", {}).get("name"),
-            "dataModel": data_model,
-        }
-
-        # Conservation du conteneur parent s'il existe
-        if container_entity.get("parent"):
-            create_payload["parent"] = container_entity["parent"].get(
-                "fullyQualifiedName"
+            # Sauvegarde de l'entité mise à jour
+            put_url = f"{OPENMETADATA_HOST}/v1/containers"
+            put_response = requests.put(
+                put_url, headers=HEADERS, json=create_payload
             )
 
-        # Sauvegarde de l'entité mise à jour
-        put_url = f"{OPENMETADATA_HOST}/v1/containers"
-        put_response = requests.put(
-            put_url, headers=HEADERS, json=create_payload
-        )
-
-        if put_response.status_code in (200, 201):
-            print(f"Fiche enrichie avec succès via REST : {container_name}")
-        else:
-            print(
-                f"Erreur lors de la mise à jour ({put_response.status_code}) :"
-                f" {put_response.text}"
-            )
+            if put_response.status_code in (200, 201):
+                print(f"Fiche enrichie avec succès via REST : {container_name}")
+            else:
+                print(
+                    f"Erreur lors de la mise à jour ({put_response.status_code}) :"
+                    f" {put_response.text}"
+                )
 
 
 # -------------------------------------------------------------------------
