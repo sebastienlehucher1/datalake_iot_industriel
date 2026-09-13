@@ -176,6 +176,19 @@ def run_metadata_enrichment():
                 "dataModel": data_model,
             }
 
+            # --- GESTION SOUPLE DU PROPRIÉTAIRE (OWNER) ---
+            yaml_owner = yaml_data.get("owner")
+
+            if yaml_owner and isinstance(yaml_owner, dict) and yaml_owner.get("name"):            
+                create_payload["owners"] = [{
+                    "type": yaml_owner.get("type", "user"),
+                    "name": yaml_owner.get("name"),
+                }]
+            elif container_entity.get("owners"):
+                # Conservation du propriétaire existant dans OpenMetadata s'il n'est pas spécifié dans le YAML
+                create_payload["owners"] = container_entity.get("owners")
+            # -----------------------------------------------
+
             # Conservation du conteneur parent s'il existe
             if container_entity.get("parent"):
                 create_payload["parent"] = container_entity["parent"].get(
