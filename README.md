@@ -125,4 +125,56 @@ http://localhost:8585/home (admin@open-metadata.org / admin par défaut pour se 
 
 
 
+## Configuration de l'UI OpenMetadata (v1.8.2.0)
+
+Cette section récapitule la gouvernance, les rôles et les interconnexions de services configurés directement depuis l'interface d'administration OpenMetadata.
+
+---
+
+### 1. Classification & Taggage (Data Governance)
+
+* **Classification :** `DataClassification`
+  * **Description :** *Classification des variables métiers et techniques du Data Lake, utilisée pour structurer la gouvernance, identifier les cibles de modélisation IA/ML et appliquer des règles de qualité de données.*
+* **Tag :** `TargetVariable`
+  * **Rattaché à :** `DataClassification.TargetVariable`
+  * **Description :** *Colonne cible (variable dépendante / ground truth) destinée aux modèles d'apprentissage automatique (ML/IA) pour la détection d'anomalies et la prédiction de pannes. Ne doit pas être utilisée comme variable explicative (pour éviter la fuite de données) et exige une qualité stricte sans aucune valeur nulle.*
+
+---
+
+### 2. Gestion des Utilisateurs & Rôles
+
+* **Utilisateur :** `responsable_maintenance`
+  * **Rôle/Périmètre :** Utilisateur dédié à la gestion opérationnelle, au suivi des pipelines d'ingestion et à la maintenance de la qualité des métadonnées sur le catalogue.
+
+---
+
+### 3. Interconnexions des Services
+
+#### A. Service Base de Données — `Postgres_Production`
+* **Type :** Service PostgreSQL (Database Service)
+* **Usage :** Ingestion du schéma et des métadonnées du catalogue applicatif/métier.
+* **Paramètres de connexion :**
+  * **Host & Port :** `psql-db:5432`
+  * **Database Name :** `${OM_DB}` 
+  * **Database Username :** `${OM_DB_USER}`
+  * **Prérequis d'ingestion (GetQueries & Profiler) :** Extension `pg_stat_statements` active et attribution du rôle `pg_read_all_stats` à l'utilisateur `openmetadata_user`.
+
+#### B. Service Pipeline — `Airflow`
+* **Type :** Service Pipeline (Pipeline Service)
+* **Usage :** Orchestration et suivi des DAGs d'ingestion internes d'OpenMetadata.
+* **Paramètres de connexion :**
+  * **Host & Port :** `psql-db:5432`
+  * **Database Name :** `${OM_AIRFLOW_DB}`
+  * **Database Username :** `${OM_AIRFLOW_DB_USER}`
+  * **Note réseau :** Connecté au schéma interne isolé d'Airflow (distinct de la base Airflow métier d'entreprise).
+
+#### C. Service Stockage Objets — `MinIO_Raw`
+* **Type :** Service Storage (S3 / MinIO Compatible)
+* **Usage :** Découverte et suivi de lignée sur les buckets de données brutes (`raw`).
+* **Paramètres de connexion :**
+  * **Endpoint URL :** `http://minio:9000` *(Utilisation du nom du service Docker `minio` pour la résolution DNS interne au réseau conteneurisé, en remplacement de `localhost`)*.
+  * **Bucket cible :** `raw`
+
+
+
 
