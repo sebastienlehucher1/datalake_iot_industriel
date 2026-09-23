@@ -65,7 +65,7 @@ psql -U postgres -d postgres_db -c \
 Ajouter pg_stat_statements à shared_preload_libraries :
  psql -U postgres -d postgres_db -c \
 "ALTER SYSTEM SET shared_preload_libraries = 'pg_stat_statements';"
-
+puis redémarrer le conteneur psql-db
 
 Vérifier l'ajout de pg_stat_statements à shared_preload_libraries :
 cat $(psql -U postgres -d postgres_db -tAc "SHOW config_file" | xargs dirname)/postgresql.auto.conf

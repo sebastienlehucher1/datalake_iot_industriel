@@ -56,7 +56,10 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       AIRFLOW_DB: ${AIRFLOW_DB}
       AIRFLOW_DB_USER: ${AIRFLOW_DB_USER}
-      AIRFLOW_DB_PASSWORD: ${AIRFLOW_DB_PASSWORD}      
+      AIRFLOW_DB_PASSWORD: ${AIRFLOW_DB_PASSWORD}
+      OM_AIRFLOW_DB: ${OM_AIRFLOW_DB}
+      OM_AIRFLOW_DB_USER: ${OM_AIRFLOW_DB_USER}
+      OM_AIRFLOW_DB_PASSWORD: ${OM_AIRFLOW_DB_PASSWORD}      
       OM_DB: ${OM_DB}
       OM_DB_USER: ${OM_DB_USER}
       OM_DB_PASSWORD: ${OM_DB_PASSWORD}
@@ -237,15 +240,26 @@ services:
       context: .
       dockerfile: Dockerfile.ingestion
     container_name: openmetadata-ingestion
-    command: standalone
+    entrypoint: /bin/bash
+    command: "/opt/airflow/ingestion_dependency.sh"
     env_file:
       - .env
     depends_on:
       openmetadata-server:
         condition: service_started
     environment:
-      OPENMETADATA_SERVER_CONFIG_HOST_PORT: http://openmetadata-server:8585/api
+      AIRFLOW__API__AUTH_BACKENDS: "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session"
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__OPENMETADATA_AIRFLOW_APIS__DAG_GENERATED_CONFIGS: "/opt/airflow/dag_generated_configs"
+      DB_SCHEME: postgresql+psycopg2
+      DB_HOST: psql-db
+      DB_PORT: 5432
+      DB_USER: ${OM_AIRFLOW_DB_USER}
+      DB_PASSWORD: ${OM_AIRFLOW_DB_PASSWORD}
+      AIRFLOW_DB: ${OM_AIRFLOW_DB}
       PYTHON_KEYRING_BACKEND: keyring.backends.null.Keyring
+    ports:
+      - "8082:8080"
     volumes:
       - ./dags:/opt/airflow/dags
       - ./dag_generated_configs:/opt/airflow/dag_generated_configs      
