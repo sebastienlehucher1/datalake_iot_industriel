@@ -163,6 +163,7 @@ Cette section récapitule la gouvernance, les rôles et les interconnexions de s
 * **Type :** Service Pipeline (Pipeline Service)
 * **Usage :** Orchestration et suivi des DAGs d'ingestion internes d'OpenMetadata.
 * **Paramètres de connexion :**
+  * **Endpoint URL :** `http://openmetadata-ingestion:8080` *(Utilisation du nom du service Docker `openmetadata-ingestion` pour la résolution DNS interne au réseau conteneurisé, en remplacement de `localhost`)*.
   * **Host & Port :** `psql-db:5432`
   * **Database Name :** `${OM_AIRFLOW_DB}`
   * **Database Username :** `${OM_AIRFLOW_DB_USER}`
