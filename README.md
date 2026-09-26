@@ -1,4 +1,4 @@
-# Brief : créer et maintenir un DataLake - IoT Industriel
+# Brief : créer et maintenir un Data Lake - IoT Industriel
 
 
 ## Présentation :
