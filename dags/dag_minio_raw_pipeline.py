@@ -213,7 +213,7 @@ def run_metadata_enrichment():
 # Fonctions de Tâches
 # -------------------------------------------------------------------------
 def get_pipeline_id_from_service(service_name: str) -> str:
-    """Récupère l'UUID du pipeline d'ingestion en interrogeant l'endpoint du Storage Service."""  
+    """Récupère l'UUID ET la FQN du pipeline d'ingestion en interrogeant l'endpoint du Storage Service."""  
 
     headers = get_headers()
 
@@ -237,32 +237,35 @@ def get_pipeline_id_from_service(service_name: str) -> str:
             f"Aucun pipeline d'ingestion n'est rattaché au service '{service_name}'."
         )
 
-    # Récupération de l'UUID du premier pipeline d'ingestion
+    # Récupération de l'UUID et la fqn du premier pipeline d'ingestion
     pipeline_id = ingestion_pipelines[0].get("id")
     pipeline_name = ingestion_pipelines[0].get("name")
+    pipeline_fqn = ingestion_pipelines[0].get("fullyQualifiedName")
     print(
         f"Pipeline trouvé via le service {service_name} : {pipeline_name} (ID:"
-        f" {pipeline_id})"
+        f" {pipeline_id}, FQN: {pipeline_fqn})"
     )
 
-    return pipeline_id
+    return pipeline_id, pipeline_fqn
 
 
-def wait_for_pipeline_completion(pipeline_id: str, timeout_sec=300):
-    """Attend la fin de l'exécution du pipeline d'ingestion OpenMetadata."""
+def wait_for_pipeline_completion(pipeline_fqn: str, trigger_ts_ms: int, timeout_sec=300):
+    """Attend la fin de l'exécution du pipeline d'ingestion OpenMetadata."""    
 
     headers = get_headers()
 
-    status_url = f"{OPENMETADATA_HOST}/v1/services/ingestionPipelines/{pipeline_id}/pipelineStatus?limit=1"
+    status_url = f"{OPENMETADATA_HOST}/v1/services/ingestionPipelines/{pipeline_fqn}/pipelineStatus"
     start_time = time.time()
-    max_500_retries = 5
-    consecutive_500_count = 0
+   
 
     print("Ingestion déclenchée. Pause de 5 secondes avant le premier check...")
     time.sleep(5)
 
     while time.time() - start_time < timeout_sec:
-        response = requests.get(status_url, headers=headers)
+        now_ms = int(time.time() * 1000)
+        params = {"startTs": trigger_ts_ms, "endTs": now_ms, "limit": 1}
+        response = requests.get(status_url, headers=headers, params=params)
+        print(f"URL appelée : {response.url}") 
 
         if response.status_code == 200:
             statuses = response.json().get("data", [])
@@ -285,18 +288,7 @@ def wait_for_pipeline_completion(pipeline_id: str, timeout_sec=300):
                     )
             else:
                 print("Aucun statut trouvé pour le moment, attente...")
-
-        elif response.status_code == 500 and "startTs" in response.text:
-            consecutive_500_count += 1
-            print(
-                f"En attente de démarrage côté OpenMetadata ({consecutive_500_count}/{max_500_retries})..."
-            )
-
-            if consecutive_500_count >= max_500_retries:
-                raise RuntimeError(
-                    "Le runner d'ingestion OpenMetadata ne répond pas ou n'a pas"
-                    " pu démarrer le job (startTs toujours Null)."
-                )
+                   
 
         else:
             print(f"Erreur API OpenMetadata ({response.status_code}) : {response.text}")
@@ -314,7 +306,7 @@ def trigger_om_ingestion_from_ui(**kwargs):
 
 
     # Récupération dynamique de l'UUID du pipeline d'ingestion via l'API du Storage Service
-    pipeline_id = get_pipeline_id_from_service(SERVICE_NAME)
+    pipeline_id, pipeline_fqn = get_pipeline_id_from_service(SERVICE_NAME)
 
 
     # Appel POST direct sur l'endpoint /trigger/{UUID}
@@ -322,10 +314,9 @@ def trigger_om_ingestion_from_ui(**kwargs):
 
     headers = get_headers()
 
-    # Envoi d'un payload JSON pour forcer l'initialisation du startTs
-    trigger_payload = {"startTs": int(time.time() * 1000)}    
+    trigger_ts_ms = int(time.time() * 1000) - 5000    
 
-    res_trigger = requests.post(trigger_url, headers=headers, json=trigger_payload)
+    res_trigger = requests.post(trigger_url, headers=headers)
 
     if res_trigger.status_code in (200, 201, 202):
         print(f"Pipeline (ID: {pipeline_id}) déclenché avec succès depuis l'UI OpenMetadata.")
@@ -335,14 +326,18 @@ def trigger_om_ingestion_from_ui(**kwargs):
             f" {res_trigger.text}"
         )
 
-    # Transmission à la tâche suivante via XCom
+    # Transmission à la tâche suivante via XCom :  la FQN (pour le polling
+    # de statut) ET l'horodatage du trigger
+    kwargs["ti"].xcom_push(key="pipeline_fqn", value=pipeline_fqn)
+    kwargs["ti"].xcom_push(key="trigger_ts_ms", value=trigger_ts_ms)
     return pipeline_id
 
 
 def wait_for_ingestion(**kwargs):
-    ti = kwargs["ti"]
-    pipeline_id = ti.xcom_pull(task_ids="task_s3_ingestion")
-    wait_for_pipeline_completion(pipeline_id)
+    ti = kwargs["ti"]    
+    pipeline_fqn = ti.xcom_pull(task_ids="ingest_minio_s3_structure", key="pipeline_fqn")
+    trigger_ts_ms = ti.xcom_pull(task_ids="ingest_minio_s3_structure", key="trigger_ts_ms")
+    wait_for_pipeline_completion(pipeline_fqn, trigger_ts_ms)
 
 
 # -------------------------------------------------------------------------
