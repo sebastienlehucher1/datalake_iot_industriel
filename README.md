@@ -32,9 +32,11 @@ Ce projet met en place l'architecture **Data Lake (MinIO, Airflow, OpenMetadata)
 
 - boto3 : bibliothèque Python officielle d’AWS (AWS SDK for Python), qui permet d’utiliser S3 AWS
 
-- Apache Airflow : permet l'automatisation et le monitoring des pipelines
+- Apache Airflow : permet l'automatisation et le monitoring des pipelines d'orchestration de traitements de données
 
 - OpenMetadata : plateforme open source de catalogue et de gouvernance des données, permettant de documenter les métadonnées et de suivre le lineage des données
+
+- OpenSearch : indexation et recherche de métadonnées
 
 
 
